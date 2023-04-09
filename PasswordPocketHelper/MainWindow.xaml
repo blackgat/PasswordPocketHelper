@@ -13,23 +13,55 @@
     mc:Ignorable="d">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="100" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Vertical">
-            <Button Command="{Binding UiButtonReadBitwardenCommand}" Content="Bitwarden" />
-            <Button Command="{Binding UiButtonReadChromeCommand}" Content="Chrome" />
-        </StackPanel>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel x:Name="ButtonStackPanel" Orientation="Vertical">
+                <Button
+                    Margin="4"
+                    Command="{Binding UiButtonReadBitwardenCommand}"
+                    Content="Read from Bitwarden export file" />
+                <Button
+                    Margin="4"
+                    Command="{Binding UiButtonReadChromeCommand}"
+                    Content="Read from Chrome export file" />
+            </StackPanel>
+            <Button
+                Grid.Column="1"
+                Margin="4"
+                Command="{Binding UiButtonExecuteCommand}"
+                Content="Execute" />
+        </Grid>
         <Grid Grid.Row="1">
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
                     <Label Content="Number of records read:" />
+                    <Label>
+                        <Run d:Text="0" Text="{Binding UiTotalRecordsRead, Mode=OneWay}" />
+                    </Label>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Label Content="Number of multiple url records:" />
+                    <Label>
+                        <Run d:Text="0" Text="{Binding UiNumberOfMultipleUrlRecords, Mode=OneWay}" />
+                    </Label>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Label Content="Number of records with field text length too long:" />
+                    <Label>
+                        <Run d:Text="0" Text="{Binding UiNumberOfRecordsWithFieldTextLengthTooLong, Mode=OneWay}" />
+                    </Label>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Label Content="Number of records available for PasswordPocket:" />
+                    <Label>
+                        <Run d:Text="0" Text="{Binding UiNumberOfRecordsAvailableForPasswordPocket, Mode=OneWay}" />
+                    </Label>
                 </StackPanel>
             </StackPanel>
         </Grid>
