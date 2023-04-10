@@ -8,35 +8,18 @@ using System.Text.Json;
 using System.Windows;
 using PasswordPocketHelper.Models;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using CsvHelper;
 using System.Globalization;
-using System.Web;
+using System.Threading.Tasks;
 using PasswordPocketHelper.Utility;
+using System.Threading;
 
 namespace PasswordPocketHelper.ViewModels
 {
-    public enum NormalizationType
-    {
-        Bitwarden,
-        Chrome,
-        Edge
-    }
-
-    public class NormalizationWorker : BackgroundWorker
-    {
-        public NormalizationType Type { get; }
-
-        public NormalizationWorker(NormalizationType type)
-        {
-            Type = type;
-        }
-    }
-
-    public class MainWindowViewModel : ObservableObject
+    public partial class MainWindowViewModel : ObservableObject
     {
         // The following data are guessed values based on official browser extensions
         public const int NameMaxLength = 64;
@@ -44,37 +27,7 @@ namespace PasswordPocketHelper.ViewModels
         public const int AccountMaxLength = 255;
         public const int PasswordMaxLength = 239;
 
-        private int _uiTotalRecordsRead;
-
-        public int UiTotalRecordsRead
-        {
-            get => _uiTotalRecordsRead;
-            set => SetProperty(ref _uiTotalRecordsRead, value);
-        }
-
-        private int _uiNumberOfMultipleUrlRecords;
-
-        public int UiNumberOfMultipleUrlRecords
-        {
-            get => _uiNumberOfMultipleUrlRecords;
-            set => SetProperty(ref _uiNumberOfMultipleUrlRecords, value);
-        }
-
-        private int _uiNumberOfRecordsWithFieldTextLengthTooLong;
-
-        public int UiNumberOfRecordsWithFieldTextLengthTooLong
-        {
-            get => _uiNumberOfRecordsWithFieldTextLengthTooLong;
-            set => SetProperty(ref _uiNumberOfRecordsWithFieldTextLengthTooLong, value);
-        }
-
-        private int _uiNumberOfRecordsAvailableForPasswordPocket;
-
-        public int UiNumberOfRecordsAvailableForPasswordPocket
-        {
-            get => _uiNumberOfRecordsAvailableForPasswordPocket;
-            set => SetProperty(ref _uiNumberOfRecordsAvailableForPasswordPocket, value);
-        }
+        private readonly List<KeyMetadataItem> _keyMetadataItemList = new();
 
         private ICommand? _uiButtonReadBitwardenCommand;
         public ICommand UiButtonReadBitwardenCommand => _uiButtonReadBitwardenCommand ??= new RelayCommand(OnUiButtonReadBitwardenCommand);
@@ -92,10 +45,6 @@ namespace PasswordPocketHelper.ViewModels
                 var targetFileName = openFileDialog.FileName;
                 if (File.Exists(targetFileName))
                 {
-                    UiTotalRecordsRead = 0;
-                    UiNumberOfMultipleUrlRecords = 0;
-                    UiNumberOfRecordsWithFieldTextLengthTooLong = 0;
-
                     var jsonSrcString = File.ReadAllText(targetFileName);
                     var bitWardenData = JsonSerializer.Deserialize<BitwardenExportData>(jsonSrcString)!;
                     if (bitWardenData is { encrypted: true })
@@ -104,99 +53,19 @@ namespace PasswordPocketHelper.ViewModels
                         return;
                     }
 
-                    //var backgroundWorker = new BackgroundWorker();
-                    //backgroundWorker.WorkerReportsProgress = true;
-                    //backgroundWorker.WorkerSupportsCancellation = true;
-
-                    var chromeCsvExportDataList = new List<ChromeCsvExportData>();
-                    var pendingMultiUriItems = new List<BitwardenExportDataItem>();
-                    var pendingLengthTooLongItems = new List<BitwardenExportDataItem>();
-
-                    void BasicClassification(BitwardenExportDataItem item)
-                    {
-                        if (item.login.uris is { Length: > 1 })
-                        {
-                            pendingMultiUriItems.Add(item);
-                        }
-                        else
-                        {
-                            var chromeCsvExportData = new ChromeCsvExportData
-                            {
-                                name = item.name,
-                                username = item.login.username,
-                                password = item.login.password
-                            };
-
-                            var uri = item.login.uris?.First();
-                            if (uri != null)
-                                chromeCsvExportData.url = uri is { uri.IsAbsoluteUri: true }
-                                    ? uri.uri.Host
-                                    : uri.uri.OriginalString;
-
-                            if (!string.IsNullOrEmpty(chromeCsvExportData.name) && Encoding.ASCII.GetBytes(chromeCsvExportData.name).Length > NameMaxLength ||
-                                !string.IsNullOrEmpty(chromeCsvExportData.username) && Encoding.ASCII.GetBytes(chromeCsvExportData.username).Length > AccountMaxLength ||
-                                !string.IsNullOrEmpty(chromeCsvExportData.password) && Encoding.ASCII.GetBytes(chromeCsvExportData.password).Length > PasswordMaxLength ||
-                                !string.IsNullOrEmpty(chromeCsvExportData.url) && Encoding.ASCII.GetBytes(chromeCsvExportData.url).Length > UrlMaxLength)
-                            {
-                                pendingLengthTooLongItems.Add(item);
-                            }
-                            else
-                            {
-                                chromeCsvExportDataList.Add(chromeCsvExportData);
-                            }
-                        }
-                    }
+                    ResetUiInfo();
 
                     foreach (var bitwardenExportDataItem in bitWardenData.items)
                     {
-                        BasicClassification(bitwardenExportDataItem);
+                        _keyMetadataItemList.Add(bitwardenExportDataItem.ToKeyMetadataItem());
                     }
 
-                    UiTotalRecordsRead = bitWardenData.items.Length;
-                    UiNumberOfMultipleUrlRecords = pendingMultiUriItems.Count;
-                    UiNumberOfRecordsWithFieldTextLengthTooLong = pendingLengthTooLongItems.Count;
-
-                    void MultipleUrlItemClassification(BitwardenExportDataItem bitwardenExportDataItem1)
-                    {
-                        var uris = bitwardenExportDataItem1.login.uris!;
-                        var cnt = 1;
-                        foreach (var uri in uris)
-                        {
-                            var newItem = ObjectHelper.DeepCopy(bitwardenExportDataItem1)!;
-                            newItem.name = $"{newItem.name} - {cnt++}";
-                            newItem.login.uris = new[] { uri };
-                            BasicClassification(newItem);
-                        }
-                    }
-
-                    var multiUriItems = pendingMultiUriItems.ToList();
-                    pendingMultiUriItems.Clear();
-                    foreach (var bitwardenExportDataItem in multiUriItems)
-                    {
-                        MultipleUrlItemClassification(bitwardenExportDataItem);
-                    }
-
-                    UiNumberOfRecordsAvailableForPasswordPocket = chromeCsvExportDataList.Count;
-
-                    var saveFileDialog = new SaveFileDialog
-                    {
-                        Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
-                        InitialDirectory = KnownFolders.GetPath(KnownFolder.Downloads)
-                    };
-
-                    if (saveFileDialog.ShowDialog() == true)
-                    {
-                        var exportFileName = saveFileDialog.FileName;
-                        using var writer = new StreamWriter(exportFileName);
-                        using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
-                        csv.WriteRecords(chromeCsvExportDataList);
-                    }
+                    UiTotalRecordsRead = _keyMetadataItemList.Count;
                 }
             }
         }
 
         private ICommand? _uiButtonReadChromeCommand;
-
         public ICommand UiButtonReadChromeCommand => _uiButtonReadChromeCommand ??= new RelayCommand(OnUiButtonReadChromeCommand);
 
         private void OnUiButtonReadChromeCommand()
@@ -219,144 +88,159 @@ namespace PasswordPocketHelper.ViewModels
                         var records = csv.GetRecords<ChromeCsvExportData>();
                         chromeExportDataList.AddRange(records);
                     }
-                    var browserRecordDataList = new List<BrowserRecordData>();
+
+                    ResetUiInfo();
+
                     foreach (var chromeCsvExportData in chromeExportDataList)
                     {
-                        chromeCsvExportData.url = HttpUtility.UrlDecode(chromeCsvExportData.url); // Now it will be "xxx,xxx,xxx"
-                        var urls = chromeCsvExportData.url.Split(
-                            new [] { "," },
-                            StringSplitOptions.RemoveEmptyEntries);
-                        var uriList = new List<Uri>();
-                        foreach (var url in urls)
-                        {
-                            var normalizedUrl = url;
-
-                            // Don't known why have following urls.
-                            if (url.ToLower().StartsWith("https//"))
-                            {
-                                normalizedUrl = url.ToLower().Replace("https//", "https://");
-                            }
-                            else if (url.ToLower().StartsWith("http//"))
-                            {
-                                normalizedUrl = url.ToLower().Replace("http//", "http://");
-                            }
-
-                            try
-                            {
-                                uriList.Add(new Uri(normalizedUrl));
-                            }
-                            catch (Exception e)
-                            {
-                                Debug.WriteLine($"Unable to convert {url} to Uri object.");
-                            }
-                        }
-
-                        var data = new BrowserRecordData
-                        {
-                            name = chromeCsvExportData.name,
-                            username = chromeCsvExportData.username,
-                            password = chromeCsvExportData.password,
-                            uris = uriList.ToArray()
-                        };
-
-                        browserRecordDataList.Add(data);
+                        _keyMetadataItemList.Add(chromeCsvExportData.ToKeyMetadataItem());
                     }
 
-                    var chromeCsvExportDataList = new List<ChromeCsvExportData>();
-                    var pendingMultiUriItems = new List<BrowserRecordData>();
-                    var pendingLengthTooLongItems = new List<BrowserRecordData>();
-
-                    void BasicClassification(BrowserRecordData item)
-                    {
-                        if (item.uris is { Length: > 1 })
-                        {
-                            pendingMultiUriItems.Add(item);
-                        }
-                        else
-                        {
-                            var chromeCsvExportData = new ChromeCsvExportData
-                            {
-                                name = item.name,
-                                username = item.username,
-                                password = item.password
-                            };
-
-                            var uri = item.uris?.First();
-                            if (uri != null)
-                                chromeCsvExportData.url = uri is { IsAbsoluteUri: true }
-                                    ? uri.Host
-                                    : uri.OriginalString;
-
-                            if (!string.IsNullOrEmpty(chromeCsvExportData.name) && Encoding.ASCII.GetBytes(chromeCsvExportData.name).Length > NameMaxLength ||
-                                !string.IsNullOrEmpty(chromeCsvExportData.username) && Encoding.ASCII.GetBytes(chromeCsvExportData.username).Length > AccountMaxLength ||
-                                !string.IsNullOrEmpty(chromeCsvExportData.password) && Encoding.ASCII.GetBytes(chromeCsvExportData.password).Length > PasswordMaxLength ||
-                                !string.IsNullOrEmpty(chromeCsvExportData.url) && Encoding.ASCII.GetBytes(chromeCsvExportData.url).Length > UrlMaxLength)
-                            {
-                                pendingLengthTooLongItems.Add(item);
-                            }
-                            else
-                            {
-                                chromeCsvExportDataList.Add(chromeCsvExportData);
-                            }
-                        }
-                    }
-
-                    foreach (var bitwardenExportDataItem in browserRecordDataList)
-                    {
-                        BasicClassification(bitwardenExportDataItem);
-                    }
-
-                    UiTotalRecordsRead = browserRecordDataList.Count;
-                    UiNumberOfMultipleUrlRecords = pendingMultiUriItems.Count;
-                    UiNumberOfRecordsWithFieldTextLengthTooLong = pendingLengthTooLongItems.Count;
-
-                    void MultipleUrlItemClassification(BrowserRecordData item)
-                    {
-                        var uris = item.uris!;
-                        var cnt = 1;
-                        foreach (var uri in uris)
-                        {
-                            var newItem = ObjectHelper.DeepCopy(item)!;
-                            newItem.name = $"{newItem.name} - {cnt++}";
-                            newItem.uris = new[] { uri };
-                            BasicClassification(newItem);
-                        }
-                    }
-
-                    var multiUriItems = pendingMultiUriItems.ToList();
-                    pendingMultiUriItems.Clear();
-                    foreach (var bitwardenExportDataItem in multiUriItems)
-                    {
-                        MultipleUrlItemClassification(bitwardenExportDataItem);
-                    }
-
-                    UiNumberOfRecordsAvailableForPasswordPocket = chromeCsvExportDataList.Count;
-
-                    var saveFileDialog = new SaveFileDialog
-                    {
-                        Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
-                        InitialDirectory = KnownFolders.GetPath(KnownFolder.Downloads)
-                    };
-
-                    if (saveFileDialog.ShowDialog() == true)
-                    {
-                        var exportFileName = saveFileDialog.FileName;
-                        {
-                            using var writer = new StreamWriter(exportFileName);
-                            using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
-                            csv.WriteRecords(chromeCsvExportDataList);
-                        }
-                    }
+                    UiTotalRecordsRead = _keyMetadataItemList.Count;
                 }
             }
         }
 
         private ICommand? _uiButtonExecuteCommand;
-
         public ICommand UiButtonExecuteCommand => _uiButtonExecuteCommand ??= new RelayCommand(OnUiButtonExecuteCommand);
 
-        private void OnUiButtonExecuteCommand()
+        private async void OnUiButtonExecuteCommand()
         {
+            if (!_keyMetadataItemList.Any())
+            {
+                MessageBox.Show("No item found!", "Notice", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK);
+                return;
+            }
+
+            var progress = new Progress<int>(OnReportProgress);
+            var cancellation = new CancellationTokenSource();
+            var chromeCsvExportDataList = new List<ChromeCsvExportData>();
+            var args = new object[] { progress, cancellation.Token, _keyMetadataItemList.AsReadOnly(), chromeCsvExportDataList };
+            try
+            {
+                await Task.Run(() => DoWork(args), cancellation.Token);
+
+                _keyMetadataItemList.Clear();
+
+                var saveFileDialog = new SaveFileDialog
+                {
+                    Title = "Save result as Chrome export file...",
+                    InitialDirectory = KnownFolders.GetPath(KnownFolder.Downloads),
+                    Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                    AddExtension = true,
+                    DefaultExt = "csv",
+                    CheckPathExists = true,
+                    OverwritePrompt = true,
+                    ValidateNames = true,
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    var exportFileName = saveFileDialog.FileName;
+                    try
+                    {
+                        await using var writer = new StreamWriter(exportFileName);
+                        await using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+                        await csv.WriteRecordsAsync(chromeCsvExportDataList, cancellation.Token);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine(e.Message);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+        }
+
+        private ICommand? _uiButtonResetCommand;
+        public ICommand UiButtonResetCommand => _uiButtonResetCommand ??= new RelayCommand(OnUiButtonResetCommand);
+
+        private void OnUiButtonResetCommand()
+        {
+            _keyMetadataItemList.Clear();
+            ResetUiInfo();
+        }
+
+        private void OnReportProgress(int progress)
+        {
+        }
+
+        private void DoWork(object[] args)
+        {
+            var progress = (IProgress<int>)args[0];
+            var cancellationToken = (CancellationToken)args[1];
+            var keyMetadataItemList = (IEnumerable<KeyMetadataItem>)args[2];
+            var chromeCsvExportDataList = (List<ChromeCsvExportData>)args[3];
+            
+            var pendingMultiUriItems = new List<KeyMetadataItem>();
+            var pendingLengthTooLongItems = new List<KeyMetadataItem>();
+
+            void BasicClassification(KeyMetadataItem item)
+            {
+                if (item.uris is { Length: > 1 })
+                {
+                    pendingMultiUriItems.Add(item);
+                }
+                else
+                {
+                    var chromeCsvExportData = new ChromeCsvExportData { name = item.name, username = item.username, password = item.password };
+
+                    var uri = item.uris?.FirstOrDefault();
+                    if (uri != null)
+                        chromeCsvExportData.url = uri is { IsAbsoluteUri: true }
+                            ? uri.Host
+                            : uri.OriginalString;
+
+                    if (!string.IsNullOrEmpty(chromeCsvExportData.name) && Encoding.ASCII.GetBytes(chromeCsvExportData.name).Length > NameMaxLength || !string.IsNullOrEmpty(chromeCsvExportData.username) && Encoding.ASCII.GetBytes(chromeCsvExportData.username).Length > AccountMaxLength || !string.IsNullOrEmpty(chromeCsvExportData.password) && Encoding.ASCII.GetBytes(chromeCsvExportData.password).Length > PasswordMaxLength || !string.IsNullOrEmpty(chromeCsvExportData.url) && Encoding.ASCII.GetBytes(chromeCsvExportData.url).Length > UrlMaxLength)
+                    {
+                        pendingLengthTooLongItems.Add(item);
+                    }
+                    else
+                    {
+                        chromeCsvExportDataList.Add(chromeCsvExportData);
+                    }
+                }
+            }
+
+            foreach (var bitwardenExportDataItem in keyMetadataItemList)
+            {
+                if (cancellationToken.IsCancellationRequested) return;
+
+                BasicClassification(bitwardenExportDataItem);
+            }
+
+            UiNumberOfMultipleUrlRecords = pendingMultiUriItems.Count;
+            UiNumberOfRecordsWithFieldTextLengthTooLong = pendingLengthTooLongItems.Count;
+
+            void MultipleUrlItemClassification(KeyMetadataItem item)
+            {
+                var uris = item.uris!;
+                var cnt = 1;
+                foreach (var uri in uris)
+                {
+                    var newItem = ObjectHelper.DeepCopy(item)!;
+                    newItem.name = $"{newItem.name} - {cnt++}";
+                    newItem.uris = new[] { uri };
+                    BasicClassification(newItem);
+                }
+            }
+
+            var multiUriItems = pendingMultiUriItems.ToList();
+            pendingMultiUriItems.Clear();
+            foreach (var bitwardenExportDataItem in multiUriItems)
+            {
+                if (cancellationToken.IsCancellationRequested) return;
+
+                MultipleUrlItemClassification(bitwardenExportDataItem);
+            }
+
+            UiNumberOfRecordsAvailableForPasswordPocket = chromeCsvExportDataList.Count;
         }
     }
 }

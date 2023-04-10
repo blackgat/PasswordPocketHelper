@@ -21,21 +21,36 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <StackPanel x:Name="ButtonStackPanel" Orientation="Vertical">
-                <Button
-                    Margin="4"
-                    Command="{Binding UiButtonReadBitwardenCommand}"
-                    Content="Read from Bitwarden export file" />
-                <Button
-                    Margin="4"
-                    Command="{Binding UiButtonReadChromeCommand}"
-                    Content="Read from Chrome export file" />
-            </StackPanel>
-            <Button
-                Grid.Column="1"
-                Margin="4"
-                Command="{Binding UiButtonExecuteCommand}"
-                Content="Execute" />
+            <Grid>
+                <StackPanel x:Name="ButtonStackPanel" Orientation="Vertical">
+                    <Button
+                        Margin="4"
+                        Command="{Binding UiButtonReadBitwardenCommand}"
+                        Content="Read from Bitwarden export file" />
+                    <Button
+                        Margin="4"
+                        Command="{Binding UiButtonReadChromeCommand}"
+                        Content="Read from Chrome export file" />
+                </StackPanel>
+            </Grid>
+            <Grid Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid>
+                    <Button
+                        Margin="4"
+                        Command="{Binding UiButtonExecuteCommand}"
+                        Content="Execute" />
+                </Grid>
+                <Grid Column="1">
+                    <Button
+                        Margin="4"
+                        Command="{Binding UiButtonResetCommand}"
+                        Content="Reset" />
+                </Grid>
+            </Grid>
         </Grid>
         <Grid Grid.Row="1">
             <StackPanel Orientation="Vertical">
