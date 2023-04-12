@@ -3,7 +3,7 @@ image: Visual Studio 2022
 configuration: Release
 platform: Any CPU
 build_script:
-- ps: msbuild PasswordPocketHelper.sln /r /t:PasswordPocketHelper /p:Configuration=Release /p:Platform="Any CPU" /p:Version=%APPVEYOR_BUILD_VERSION% /p:FileVersion=%APPVEYOR_BUILD_VERSION%
+- ps: msbuild PasswordPocketHelper.sln /r /t:PasswordPocketHelper /p:Configuration=Release /p:Platform="Any CPU" /p:Version=$APPVEYOR_BUILD_VERSION /p:FileVersion=$APPVEYOR_BUILD_VERSION
 after_build:
   - 7z a PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip .\PasswordPocketHelper\bin\Release\net6.0-windows\* -r
 test: off
