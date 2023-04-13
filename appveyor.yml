@@ -13,14 +13,17 @@ build_script:
   - ps: msbuild PasswordPocketHelper.sln /r /t:PasswordPocketHelper /p:Configuration=Release /p:Platform="Any CPU" /p:VersionPrefix=$APPVEYOR_BUILD_VERSION /p:FileVersion=$APPVEYOR_BUILD_VERSION
 after_build:
   # 壓縮已編譯的檔案和資料夾，並將壓縮檔命名為包含版本號的檔案名
-  - 7z a PasswordPocketHelper.zip .\PasswordPocketHelper\bin\Release\net6.0-windows\* -r
+  - 7z a PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip .\PasswordPocketHelper\bin\Release\net6.0-windows\* -r
 test: off
 deploy:
   - provider: GitHub
     auth_token:
       secure: ch7FMdMWY4hVoEkbwRZXiU+Sb//46oMHq/etzvmV7+TKY8VvMqd+YMYBH9NUaANG
-    artifact: PasswordPocketHelper.zip
+    artifact: PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip
     draft: false
     prerelease: false
     on:
       branch: master
+artifacts:
+  - path: PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip
+    name: PasswordPocketHelper
