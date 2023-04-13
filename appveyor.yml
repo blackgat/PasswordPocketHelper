@@ -25,7 +25,7 @@ deploy:
     prerelease: false
     on:
       branch: master
-      APPVEYOR_REPO_TAG: true       # deploy on tag push only
+      APPVEYOR_REPO_TAG: false       # deploy on tag push only
 artifacts:
   - path: PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip
     name: PasswordPocketHelper
