@@ -225,7 +225,11 @@ namespace PasswordPocketHelper.ViewModels
                 foreach (var uri in uris)
                 {
                     var newItem = ObjectHelper.DeepCopy(item)!;
-                    newItem.name = $"{newItem.name} - {cnt++}";
+                    newItem.name = !string.IsNullOrEmpty(item.username)
+                        // uri + account
+                        ? $"{uri.Host} - {item.username}"
+                        // name + uri
+                        : $"{newItem.name}({cnt++})({uri.Host})";
                     newItem.uris = new[] { uri };
                     BasicClassification(newItem);
                 }
