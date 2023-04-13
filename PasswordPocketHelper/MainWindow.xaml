@@ -26,11 +26,11 @@
                     <Button
                         Margin="4"
                         Command="{Binding UiButtonReadBitwardenCommand}"
-                        Content="Read from Bitwarden export file" />
+                        Content="Read from Bitwarden export json file (*.json)" />
                     <Button
                         Margin="4"
                         Command="{Binding UiButtonReadChromeCommand}"
-                        Content="Read from Chrome export file" />
+                        Content="Read from Chrome/Edge export file (*.csv)" />
                 </StackPanel>
             </Grid>
             <Grid Grid.Column="1">
