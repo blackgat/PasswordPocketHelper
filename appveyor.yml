@@ -6,12 +6,12 @@ branches:
     - master
 install:
   # 執行 nuget restore
-  - ps: nuget restore
+  - cmd: nuget restore
 configuration: Release
 platform: Any CPU
 build_script:
   # 使用 msbuild 編譯 WPF 程式，針對 Any CPU 組態編譯一個 Release 版本，並設定版本號
-  - ps: msbuild PasswordPocketHelper.sln /r /t:PasswordPocketHelper /p:Configuration=Release /p:Platform="Any CPU" /p:Version=$APPVEYOR_BUILD_VERSION
+  - cmd: msbuild PasswordPocketHelper.sln /r /t:PasswordPocketHelper /p:Configuration=Release /p:Platform="Any CPU" /p:Version=%APPVEYOR_BUILD_VERSION%
 after_build:
   # 壓縮已編譯的檔案和資料夾，並將壓縮檔命名為包含版本號的檔案名
   - 7z a PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip .\PasswordPocketHelper\bin\Release\net6.0-windows\* -r
