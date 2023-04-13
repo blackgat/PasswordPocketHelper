@@ -19,6 +19,6 @@ deploy:
   - provider: GitHub
     auth_token:
       secure: ch7FMdMWY4hVoEkbwRZXiU+Sb//46oMHq/etzvmV7+TKY8VvMqd+YMYBH9NUaANG
-    artifact: /PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip
+    artifact: PasswordPocketHelper_%APPVEYOR_BUILD_VERSION%.zip
     on:
       branch: master
