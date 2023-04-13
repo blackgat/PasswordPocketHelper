@@ -26,28 +26,33 @@ namespace PasswordPocketHelper.Models
             Debug.Assert(item != null);
             Debug.Assert(!string.IsNullOrEmpty(item.name));
 
-            var keyMetadataItem = new KeyMetadataItem(item.name)
+            var keyMetadataItem = new KeyMetadataItem(item.name);
+            if (item.login != null)
             {
-                username = item.login.username,
-                password = item.login.password
-            };
+                keyMetadataItem.password = item.login.password;
+                keyMetadataItem.username = item.login.username;
 
-            try
-            {
-                var uriList = new List<Uri>();
-                if (item.login.uris != null)
+                try
                 {
-                    foreach (var loginUri in item.login.uris)
+                    List<Uri>? uriList = null;
+                    if (item.login.uris != null)
                     {
-                        uriList.Add(loginUri.uri);
+                        uriList = new List<Uri>();
+                        foreach (var loginUri in item.login.uris)
+                        {
+                            if (loginUri.uri != null)
+                            {
+                                uriList.Add(loginUri.uri);
+                            }
+                        }
                     }
-                }
 
-                keyMetadataItem.uris = uriList.ToArray();
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
+                    keyMetadataItem.uris = uriList?.ToArray();
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
             }
 
             return keyMetadataItem;

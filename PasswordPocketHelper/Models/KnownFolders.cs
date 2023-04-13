@@ -118,7 +118,7 @@ namespace PasswordPocketHelper.Models
         /// <param name="knownFolder">The known folder which current path will be returned.</param>
         /// <returns>The default path of the known folder.</returns>
         /// <exception cref="ExternalException">Thrown if the path could not be retrieved.</exception>
-        public static string GetPath(KnownFolder knownFolder)
+        public static string? GetPath(KnownFolder knownFolder)
         {
             return GetPath(knownFolder, false);
         }
@@ -132,7 +132,7 @@ namespace PasswordPocketHelper.Models
         /// This requires administrative rights.</param>
         /// <returns>The default path of the known folder.</returns>
         /// <exception cref="ExternalException">Thrown if the path could not be retrieved.</exception>
-        public static string GetPath(KnownFolder knownFolder, bool defaultUser)
+        public static string? GetPath(KnownFolder knownFolder, bool defaultUser)
         {
             return GetPath(knownFolder, KnownFolderFlags.DontVerify, defaultUser);
         }
@@ -143,7 +143,7 @@ namespace PasswordPocketHelper.Models
         /// <param name="knownFolder">The known folder which default path will be returned.</param>
         /// <returns>The current (and possibly redirected) path of the known folder.</returns>
         /// <exception cref="ExternalException">Thrown if the path could not be retrieved.</exception>
-        public static string GetDefaultPath(KnownFolder knownFolder)
+        public static string? GetDefaultPath(KnownFolder knownFolder)
         {
             return GetDefaultPath(knownFolder, false);
         }
@@ -156,7 +156,7 @@ namespace PasswordPocketHelper.Models
         /// This requires administrative rights.</param>
         /// <returns>The current (and possibly redirected) path of the known folder.</returns>
         /// <exception cref="ExternalException">Thrown if the path could not be retrieved.</exception>
-        public static string GetDefaultPath(KnownFolder knownFolder, bool defaultUser)
+        public static string? GetDefaultPath(KnownFolder knownFolder, bool defaultUser)
         {
             return GetPath(knownFolder, KnownFolderFlags.DefaultPath | KnownFolderFlags.DontVerify, defaultUser);
         }
@@ -185,21 +185,22 @@ namespace PasswordPocketHelper.Models
 
         // ---- METHODS (PRIVATE) --------------------------------------------------------------------------------------
 
-        private static string GetPath(KnownFolder knownFolder, KnownFolderFlags flags, bool defaultUser)
+        private static string? GetPath(KnownFolder knownFolder, KnownFolderFlags flags, bool defaultUser)
         {
-            int result = SHGetKnownFolderPath(new Guid(KnownFolderGuidArray[(int)knownFolder]), (uint)flags,
-                new IntPtr(defaultUser ? -1 : 0), out IntPtr outPath);
+            var result = SHGetKnownFolderPath(
+                new Guid(KnownFolderGuidArray[(int)knownFolder]),
+                (uint)flags,
+                new IntPtr(defaultUser ? -1 : 0),
+                out IntPtr outPath);
+
             if (result >= 0)
             {
-                string path = Marshal.PtrToStringUni(outPath);
+                var path = Marshal.PtrToStringUni(outPath);
                 Marshal.FreeCoTaskMem(outPath);
                 return path;
             }
-            else
-            {
-                throw new ExternalException(
-                    "Unable to retrieve the known folder path. It may not be available on this system.", result);
-            }
+
+            throw new ExternalException("Unable to retrieve the known folder path. It may not be available on this system.", result);
         }
 
         /// <summary>

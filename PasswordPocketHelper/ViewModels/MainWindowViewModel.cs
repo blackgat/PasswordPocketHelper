@@ -55,9 +55,12 @@ namespace PasswordPocketHelper.ViewModels
 
                     ResetUiInfo();
 
-                    foreach (var bitwardenExportDataItem in bitWardenData.items)
+                    if (bitWardenData.items != null)
                     {
-                        _keyMetadataItemList.Add(bitwardenExportDataItem.ToKeyMetadataItem());
+                        foreach (var bitwardenExportDataItem in bitWardenData.items)
+                        {
+                            _keyMetadataItemList.Add(bitwardenExportDataItem.ToKeyMetadataItem());
+                        }
                     }
 
                     UiTotalRecordsRead = _keyMetadataItemList.Count;
@@ -173,6 +176,7 @@ namespace PasswordPocketHelper.ViewModels
 
         private void DoWork(object[] args)
         {
+            // TODO: Support progress
             var progress = (IProgress<int>)args[0];
             var cancellationToken = (CancellationToken)args[1];
             var keyMetadataItemList = (IEnumerable<KeyMetadataItem>)args[2];
