@@ -125,6 +125,7 @@ namespace PasswordPocketHelper.ViewModels
 
                 _keyMetadataItemList.Clear();
 
+                var timeStamp = $"{DateTime.Now:yyyyMMddHHmmss}";
                 var saveFileDialog = new SaveFileDialog
                 {
                     Title = "Save result as Chrome export file...",
@@ -135,6 +136,7 @@ namespace PasswordPocketHelper.ViewModels
                     CheckPathExists = true,
                     OverwritePrompt = true,
                     ValidateNames = true,
+                    FileName = $"PasswordPocketHelper_NormalizedData_{timeStamp}.csv"
                 };
 
                 if (saveFileDialog.ShowDialog() == true)
@@ -183,7 +185,7 @@ namespace PasswordPocketHelper.ViewModels
             var chromeCsvExportDataList = (List<ChromeCsvExportData>)args[3];
             
             var pendingMultiUriItems = new List<KeyMetadataItem>();
-            var pendingLengthTooLongItems = new List<KeyMetadataItem>();
+            var pendingInfoLengthTooLongItems = new List<KeyMetadataItem>();
 
             void BasicClassification(KeyMetadataItem item)
             {
@@ -201,9 +203,12 @@ namespace PasswordPocketHelper.ViewModels
                             ? uri.Host
                             : uri.OriginalString;
 
-                    if (!string.IsNullOrEmpty(chromeCsvExportData.name) && Encoding.ASCII.GetBytes(chromeCsvExportData.name).Length > NameMaxLength || !string.IsNullOrEmpty(chromeCsvExportData.username) && Encoding.ASCII.GetBytes(chromeCsvExportData.username).Length > AccountMaxLength || !string.IsNullOrEmpty(chromeCsvExportData.password) && Encoding.ASCII.GetBytes(chromeCsvExportData.password).Length > PasswordMaxLength || !string.IsNullOrEmpty(chromeCsvExportData.url) && Encoding.ASCII.GetBytes(chromeCsvExportData.url).Length > UrlMaxLength)
+                    if (!string.IsNullOrEmpty(chromeCsvExportData.name) && Encoding.UTF8.GetBytes(chromeCsvExportData.name).Length > NameMaxLength ||
+                        !string.IsNullOrEmpty(chromeCsvExportData.username) && Encoding.UTF8.GetBytes(chromeCsvExportData.username).Length > AccountMaxLength ||
+                        !string.IsNullOrEmpty(chromeCsvExportData.password) && Encoding.UTF8.GetBytes(chromeCsvExportData.password).Length > PasswordMaxLength ||
+                        !string.IsNullOrEmpty(chromeCsvExportData.url) && Encoding.UTF8.GetBytes(chromeCsvExportData.url).Length > UrlMaxLength)
                     {
-                        pendingLengthTooLongItems.Add(item);
+                        pendingInfoLengthTooLongItems.Add(item);
                     }
                     else
                     {
@@ -220,7 +225,7 @@ namespace PasswordPocketHelper.ViewModels
             }
 
             UiNumberOfMultipleUrlRecords = pendingMultiUriItems.Count;
-            UiNumberOfRecordsWithFieldTextLengthTooLong = pendingLengthTooLongItems.Count;
+            UiNumberOfRecordsWithFieldTextLengthTooLong = pendingInfoLengthTooLongItems.Count;
 
             void MultipleUrlItemClassification(KeyMetadataItem item)
             {
@@ -246,6 +251,33 @@ namespace PasswordPocketHelper.ViewModels
                 if (cancellationToken.IsCancellationRequested) return;
 
                 MultipleUrlItemClassification(bitwardenExportDataItem);
+            }
+
+            void InfoLengthTooLongItemClassification(KeyMetadataItem item)
+            {
+                if (!string.IsNullOrEmpty(item.name) && Encoding.UTF8.GetBytes(item.name).Length > NameMaxLength)
+                {
+                    item.name = item.name.ReduceStringSize(NameMaxLength, Encoding.UTF8);
+                }
+                if (!string.IsNullOrEmpty(item.username) && Encoding.ASCII.GetBytes(item.username).Length > AccountMaxLength)
+                {
+                    // Do nothing, this is important information.
+                    //item.username = item.username.ReduceStringSize(AccountMaxLength, Encoding.ASCII);
+                }
+                if (!string.IsNullOrEmpty(item.password) && Encoding.ASCII.GetBytes(item.password).Length > PasswordMaxLength)
+                {
+                    // Do nothing, this is important information.
+                    //item.password = item.password.ReduceStringSize(PasswordMaxLength, Encoding.ASCII);
+                }
+
+                BasicClassification(item);
+            }
+
+            var infoLengthTooLongItems = pendingInfoLengthTooLongItems.ToList();
+            pendingInfoLengthTooLongItems.Clear();
+            foreach (var infoLengthTooLongItem in infoLengthTooLongItems)
+            {
+                InfoLengthTooLongItemClassification(infoLengthTooLongItem);
             }
 
             UiNumberOfRecordsAvailableForPasswordPocket = chromeCsvExportDataList.Count;
